@@ -69,6 +69,9 @@ jobs:
           mkdir -p build-input/configuration-repository
           ./build-system/example-generate-configuration build-input/configuration-repository
           echo 'module(name = "build_configuration")' > build-input/configuration-repository/MODULE.bazel
+          echo "=== BUILD CONFIG CHECK ==="
+          ls -la build-input/configuration-repository
+          cat build-input/configuration-repository/MODULE.bazel
 
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
