@@ -1,0 +1,158 @@
+name: Build Unsigned IPA (AltStore / TrollStore)
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration'
+        type: choice
+        required: true
+        default: 'release_arm64'
+        options:
+          - release_arm64
+          - debug_arm64
+      embed_watch:
+        description: 'Embed watchOS app'
+        type: boolean
+        default: false
+      create_release:
+        description: 'Create GitHub Release with artifacts'
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'build-*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-14
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set Xcode version
+        run: |
+          XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys; obj=json.load(sys.stdin); print(obj["xcode"]);')
+          echo "Using Xcode $XCODE_VERSION"
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+
+      - name: Setup stable source directory
+        run: |
+          # Bazel includes source paths in binaries; use canonical path for reproducibility
+          sudo mkdir -p /Users/Shared/telegram-ios
+          sudo rsync -a --delete "$GITHUB_WORKSPACE/" /Users/Shared/telegram-ios/
+          echo "SOURCE_DIR=/Users/Shared/telegram-ios" >> $GITHUB_ENV
+
+      - name: Calculate build number
+        run: |
+          cd /Users/Shared/telegram-ios
+          BUILD_NUMBER_OFFSET=$(cat build_number_offset)
+          APP_VERSION=$(cat versions.json | python3 -c 'import json,sys; obj=json.load(sys.stdin); print(obj["app"]);')
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          BUILD_NUMBER=$((COMMIT_COUNT + BUILD_NUMBER_OFFSET))
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+          echo "APP_VERSION=$APP_VERSION"
+          echo "BUILD_NUMBER=$BUILD_NUMBER"
+
+      - name: Import fake certificates
+        run: |
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+
+      - name: Regenerate provisioning profiles for bundle_id
+        run: |
+          set -x
+          # Backup original profiles, then regenerate for the bundle_id in appstore-configuration.json
+          cp -R build-system/fake-codesigning/profiles build-system/fake-codesigning/profiles-backup
+          python3 build-system/Make/RegenerateProfilesForBundleId.py \
+            --configurationPath=build-system/appstore-configuration.json \
+            --sourceProfiles=build-system/fake-codesigning/profiles-backup \
+            --destinationProfiles=build-system/fake-codesigning/profiles \
+            --certsPath=build-system/fake-codesigning/certs
+
+      - name: Prepare configuration repository
+        run: |
+          mkdir -p build-input/configuration-repository
+          ./build-system/example-generate-configuration build-input/configuration-repository
+          echo 'module(name = "build_configuration")' > build-input/configuration-repository/MODULE.bazel
+
+      - name: Build IPA (unsigned, fake-codesigning)
+        env:
+          BAZEL_USER_ROOT: "/private/var/tmp/_bazel_containerhost"
+        run: |
+          set -x
+          cd /Users/Shared/telegram-ios
+
+          EMBED_WATCH="${{ github.event.inputs.embed_watch || 'false' }}"
+          EMBED_WATCH_FLAG=""
+          if [ "$EMBED_WATCH" = "true" ]; then
+            EMBED_WATCH_FLAG="--embedWatchApp"
+          fi
+
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            --overrideXcodeVersion \
+            build \
+            --configurationPath="build-system/appstore-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration="${{ github.event.inputs.configuration || 'release_arm64' }}" \
+            --buildNumber="$BUILD_NUMBER" \
+            $EMBED_WATCH_FLAG \
+            --outputBuildArtifactsPath="build/artifacts"
+
+      - name: Verify IPA exists
+        run: |
+          ls -la /Users/Shared/telegram-ios/build/artifacts/
+          if [ ! -f /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa ]; then
+            echo "::error::IPA not found!"
+            exit 1
+          fi
+          echo "IPA size: $(du -h /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa | cut -f1)"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mimosa-unsigned-ipa
+          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
+          retention-days: 30
+
+      - name: Upload dSYMs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mimosa-dsyms
+          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Create Release (on tag push or manual)
+        if: github.event_name == 'push' || inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name != '' && github.ref_name || format('build-{0}', github.run_number) }}
+          name: Mimosa ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})${{ github.event.inputs.configuration && format(' [{0}]', github.event.inputs.configuration) || '' }}
+          body: |
+            **Unsigned IPA for AltStore / TrollStore**
+
+            - Version: ${{ env.APP_VERSION }}
+            - Build: ${{ env.BUILD_NUMBER }}
+            - Configuration: ${{ github.event.inputs.configuration || 'release_arm64' }}
+            - Watch app: ${{ github.event.inputs.embed_watch || 'false' }}
+            - Commit: ${{ github.sha }}
+
+            ⚠️ **This is an unsigned build.** Install via AltStore (refresh weekly) or TrollStore (permanent on jailbroken devices).
+          draft: false
+          prerelease: true
+          files: |
+            /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
+            /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
