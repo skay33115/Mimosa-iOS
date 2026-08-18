@@ -28,9 +28,8 @@ jobs:
       - name: Create canonical source directory
         run: |
           set -x
-          sudo mkdir -p /Users/Shared
-          cp -R $GITHUB_WORKSPACE /Users/Shared/
-          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
+          sudo mkdir -p /Users/Shared/telegram-ios
+          sudo rsync -a "$GITHUB_WORKSPACE/" /Users/Shared/telegram-ios/
 
       - name: Regenerate provisioning profiles for bundle id
         run: |
