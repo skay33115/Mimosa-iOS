@@ -24,7 +24,6 @@ jobs:
       - name: Build iOS
         run: |
           bazelisk build \
-          --config=release \
           //Telegram:Telegram
 
       - name: Upload build
