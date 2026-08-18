@@ -517,7 +517,10 @@ def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, argum
         provisioning_profiles_path=provisioning_path,
         additional_codesigning_output_path=additional_codesigning_output_path
     )
-    if codesigning_data.aps_environment is None:
+
+    # Skip aps-environment check if --disableProvisioningProfiles is set
+    disable_provisioning = getattr(arguments, 'disableProvisioningProfiles', False)
+    if codesigning_data.aps_environment is None and not disable_provisioning:
         print('Could not find a valid aps-environment entitlement in the provided provisioning profiles')
         sys.exit(1)
 
@@ -700,6 +703,9 @@ def build(bazel, arguments):
     bazel_command_line.set_profile_swift(arguments.profileSwift)
 
     bazel_command_line.set_split_swiftmodules(arguments.enableParallelSwiftmoduleGeneration)
+
+    if arguments.disableProvisioningProfiles:
+        bazel_command_line.set_disable_provisioning_profiles()
 
     bazel_command_line.invoke_build()
 
@@ -1097,6 +1103,12 @@ if __name__ == '__main__':
         action='store_true',
         default=False,
         help='Respect MODULE.bazel.lock.'
+    )
+    buildParser.add_argument(
+        '--disableProvisioningProfiles',
+        action='store_true',
+        default=False,
+        help='Build without provisioning profiles (for unsigned/fake-codesigning builds).'
     )
     buildParser.add_argument(
         '--embedWatchApp',
