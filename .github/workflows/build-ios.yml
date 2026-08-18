@@ -21,6 +21,11 @@ jobs:
         run: |
           bazelisk version
 
+      - name: Generate configuration
+        run: |
+          mkdir -p build-input
+          ./build-system/example-generate-configuration
+
       - name: Build iOS
         run: |
           bazelisk build \
