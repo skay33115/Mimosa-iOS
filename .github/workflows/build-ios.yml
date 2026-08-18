@@ -1,0 +1,34 @@
+name: Build Mimosa iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install tools
+        run: |
+          brew install bazelisk
+
+      - name: Check bazel
+        run: |
+          bazelisk version
+
+      - name: Build iOS
+        run: |
+          bazelisk build \
+          --config=release \
+          //Telegram:Telegram
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mimosa-iOS-build
+          path: bazel-bin/**
