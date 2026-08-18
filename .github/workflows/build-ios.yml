@@ -8,6 +8,15 @@ jobs:
     runs-on: macos-14
 
     steps:
+      - name: Generate build configuration
+        run: |
+          cd $GITHUB_WORKSPACE
+          mkdir -p build-input/configuration-repository
+          ./build-system/example-generate-configuration build-input/configuration-repository
+          echo 'module(name = "build_configuration")' > build-input/configuration-repository/MODULE.bazel
+          echo "=== CONFIGURATION CHECK ==="
+          ls -la build-input/configuration-repository
+          cat build-input/configuration-repository/MODULE.bazel
       - name: Checkout
         uses: actions/checkout@v4
         with:
