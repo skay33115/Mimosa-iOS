@@ -145,7 +145,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: build-${{ env.BUILD_NUMBER }}
+          tag_name: build-${{ github.run_number }}
           release_name: Telegram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
           body: |
             An unsigned build of Telegram for iOS ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
