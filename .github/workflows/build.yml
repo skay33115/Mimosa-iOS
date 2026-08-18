@@ -50,7 +50,7 @@ jobs:
           set -x
 
           # source code paths are included in the final binary, so we need to make them stable across builds
-          SOURCE_DIR=$GITHUB_WORKSPACE
+          SOURCE_DIR=/Users/Shared/telegram-ios
 
           # use canonical bazel root
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
