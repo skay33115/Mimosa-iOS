@@ -23,8 +23,11 @@ jobs:
 
       - name: Generate configuration
         run: |
-          mkdir -p build-input
-          ./build-system/example-generate-configuration
+
+      - name: Generate configuration
+        run: |
+          mkdir -p build-input/configuration-repository
+          ./build-system/example-generate-configuration build-input/configuration-repository
 
       - name: Build iOS
         run: |
