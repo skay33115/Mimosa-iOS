@@ -98,6 +98,8 @@ jobs:
             EMBED_WATCH_FLAG="--embedWatchApp"
           fi
 
+          # --disableProvisioningProfiles: skip provisioning profile validation
+          # (fake-codesigning profiles are self-signed and lack aps-environment)
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             --overrideXcodeVersion \
@@ -107,6 +109,7 @@ jobs:
             --configuration="${{ github.event.inputs.configuration || 'release_arm64' }}" \
             --buildNumber="$BUILD_NUMBER" \
             $EMBED_WATCH_FLAG \
+            --disableProvisioningProfiles \
             --outputBuildArtifactsPath="build/artifacts"
 
       - name: Verify IPA exists
