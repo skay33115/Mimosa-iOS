@@ -139,6 +139,12 @@ jobs:
           echo "Contents of $OUTPUT_PATH:"
           ls -la "$OUTPUT_PATH/"
 
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mimosa-IPA
+          path: "**/*.ipa"
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
