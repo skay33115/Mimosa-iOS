@@ -138,6 +138,9 @@ class BazelCommandLine:
     def set_disable_provisioning_profiles(self):
         self.disable_provisioning_profiles = True
 
+    def set_disable_extensions(self, value):
+        self.disable_extensions = value
+
     def set_profile_swift(self, value):
         self.profile_swift = value
 
@@ -706,6 +709,9 @@ def build(bazel, arguments):
 
     bazel_command_line.set_split_swiftmodules(arguments.enableParallelSwiftmoduleGeneration)
 
+    if arguments.disableExtensions:
+        bazel_command_line.set_disable_extensions(True)
+
     if arguments.disableProvisioningProfiles:
         bazel_command_line.set_disable_provisioning_profiles()
 
@@ -1105,6 +1111,12 @@ if __name__ == '__main__':
         action='store_true',
         default=False,
         help='Respect MODULE.bazel.lock.'
+    )
+    buildParser.add_argument(
+        '--disableExtensions',
+        action='store_true',
+        default=False,
+        help='Skip building app extensions (Intents, Share, Widget, etc.).'
     )
     buildParser.add_argument(
         '--disableProvisioningProfiles',
