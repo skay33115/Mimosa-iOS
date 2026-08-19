@@ -104,8 +104,7 @@ jobs:
           fi
 
           # --disableExtensions: skip building extensions (Intents, Share, Widget, etc.)
-          # --disableProvisioningProfiles: skip provisioning profile validation
-          # (fake-codesigning profiles are self-signed and lack aps-environment)
+          # (fake-codesigning profiles are self-signed and lack aps-environment, needed for extensions)
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="${BAZEL_USER_ROOT}" \
             --overrideXcodeVersion \
@@ -116,7 +115,6 @@ jobs:
             --buildNumber="${BUILD_NUMBER}" \
             $EMBED_WATCH_FLAG \
             --disableExtensions \
-            --disableProvisioningProfiles \
             --outputBuildArtifactsPath="build/artifacts"
 
       - name: Verify IPA exists
