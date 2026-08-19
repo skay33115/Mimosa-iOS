@@ -14,7 +14,7 @@ def import_certificates(certificatesPath):
 
     existing_keychains = run_executable_with_output('security', arguments=['list-keychains'], check_result=True)
     if keychain_name in existing_keychains:
-        run_executable_with_output('security', arguments=['delete-keychain'], check_result=True)
+        run_executable_with_output('security', arguments=['delete-keychain', keychain_name], check_result=False)
 
     run_executable_with_output('security', arguments=[
         'create-keychain',
