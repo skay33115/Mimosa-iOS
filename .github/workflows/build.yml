@@ -79,7 +79,9 @@ jobs:
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
-            --buildNumber="$BUILD_NUMBER"
+            --buildNumber="$BUILD_NUMBER" \
+            --disableExtensions \
+            --disableProvisioningProfiles
 
           # collect ipa - 修复路径
           OUTPUT_PATH="build/artifacts"
