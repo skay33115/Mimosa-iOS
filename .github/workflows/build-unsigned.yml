@@ -103,6 +103,7 @@ jobs:
             EMBED_WATCH_FLAG="--embedWatchApp"
           fi
 
+          # --disableExtensions: skip building extensions (Intents, Share, Widget, etc.)
           # --disableProvisioningProfiles: skip provisioning profile validation
           # (fake-codesigning profiles are self-signed and lack aps-environment)
           python3 -u build-system/Make/Make.py \
@@ -114,6 +115,7 @@ jobs:
             --configuration="${{ github.event.inputs.configuration || 'release_arm64' }}" \
             --buildNumber="${BUILD_NUMBER}" \
             $EMBED_WATCH_FLAG \
+            --disableExtensions \
             --disableProvisioningProfiles \
             --outputBuildArtifactsPath="build/artifacts"
 
