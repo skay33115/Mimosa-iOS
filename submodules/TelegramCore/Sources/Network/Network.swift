@@ -486,6 +486,27 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
             apiEnvironment = apiEnvironment.withUpdatedNetworkSettings((networkSettings ?? NetworkSettings.defaultSettings).mtNetworkSettings)
             apiEnvironment.accessHostOverride = networkSettings?.backupHostOverride
             
+            // Mimosa / GRAMSRV custom Telegram server.
+            // Set MIMOSA_SERVER_IP and MIMOSA_SERVER_PORT in the environment.
+            if let serverIp = ProcessInfo.processInfo.environment["MIMOSA_SERVER_IP"],
+               !serverIp.isEmpty,
+               let serverPortString = ProcessInfo.processInfo.environment["MIMOSA_SERVER_PORT"],
+               let serverPort = UInt16(serverPortString) {
+                let serverAddress = MTDatacenterAddress(
+                    ip: serverIp,
+                    port: serverPort,
+                    preferForMedia: false,
+                    restrictToTcp: false,
+                    cdn: false,
+                    preferForProxy: false,
+                    secret: nil
+                )
+
+                var overrides = apiEnvironment.datacenterAddressOverrides ?? [:]
+                overrides[NSNumber(value: datacenterId)] = serverAddress
+                apiEnvironment.datacenterAddressOverrides = overrides
+            }
+
             var appDataUpdatedImpl: ((Data?) -> Void)?
             let syncValue = Atomic<Data?>(value: nil)
             let appDataDisposable = (arguments.appData

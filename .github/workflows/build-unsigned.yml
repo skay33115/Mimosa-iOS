@@ -32,6 +32,11 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
 
+    env:
+      # Canonical paths for reproducible builds
+      SOURCE_DIR: /Users/Shared/telegram-ios
+      BAZEL_USER_ROOT: /private/var/tmp/_bazel_containerhost
+
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
@@ -48,29 +53,30 @@ jobs:
       - name: Setup stable source directory
         run: |
           # Bazel includes source paths in binaries; use canonical path for reproducibility
-          sudo mkdir -p /Users/Shared/telegram-ios
-          sudo rsync -a --delete "$GITHUB_WORKSPACE/" /Users/Shared/telegram-ios/
-          echo "SOURCE_DIR=/Users/Shared/telegram-ios" >> $GITHUB_ENV
+          sudo mkdir -p "${SOURCE_DIR}"
+          sudo rsync -a --delete "${GITHUB_WORKSPACE}/" "${SOURCE_DIR}/"
 
       - name: Calculate build number
         run: |
-          cd /Users/Shared/telegram-ios
+          cd "${SOURCE_DIR}"
           BUILD_NUMBER_OFFSET=$(cat build_number_offset)
           APP_VERSION=$(cat versions.json | python3 -c 'import json,sys; obj=json.load(sys.stdin); print(obj["app"]);')
           COMMIT_COUNT=$(git rev-list --count HEAD)
           BUILD_NUMBER=$((COMMIT_COUNT + BUILD_NUMBER_OFFSET))
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
-          echo "APP_VERSION=$APP_VERSION"
-          echo "BUILD_NUMBER=$BUILD_NUMBER"
+          echo "APP_VERSION=${APP_VERSION}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
+          echo "APP_VERSION=${APP_VERSION}"
+          echo "BUILD_NUMBER=${BUILD_NUMBER}"
 
       - name: Import fake certificates
         run: |
+          cd "${SOURCE_DIR}"
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
 
       - name: Regenerate provisioning profiles for bundle_id
         run: |
           set -x
+          cd "${SOURCE_DIR}"
           # Backup original profiles, then regenerate for the bundle_id in appstore-configuration.json
           cp -R build-system/fake-codesigning/profiles build-system/fake-codesigning/profiles-backup
           python3 build-system/Make/RegenerateProfilesForBundleId.py \
@@ -81,16 +87,15 @@ jobs:
 
       - name: Prepare configuration repository
         run: |
+          cd "${SOURCE_DIR}"
           mkdir -p build-input/configuration-repository
           ./build-system/example-generate-configuration build-input/configuration-repository
           echo 'module(name = "build_configuration")' > build-input/configuration-repository/MODULE.bazel
 
       - name: Build IPA (unsigned, fake-codesigning)
-        env:
-          BAZEL_USER_ROOT: "/private/var/tmp/_bazel_containerhost"
         run: |
           set -x
-          cd /Users/Shared/telegram-ios
+          cd "${SOURCE_DIR}"
 
           EMBED_WATCH="${{ github.event.inputs.embed_watch || 'false' }}"
           EMBED_WATCH_FLAG=""
@@ -101,38 +106,38 @@ jobs:
           # --disableProvisioningProfiles: skip provisioning profile validation
           # (fake-codesigning profiles are self-signed and lack aps-environment)
           python3 -u build-system/Make/Make.py \
-            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            --bazelUserRoot="${BAZEL_USER_ROOT}" \
             --overrideXcodeVersion \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
             --configuration="${{ github.event.inputs.configuration || 'release_arm64' }}" \
-            --buildNumber="$BUILD_NUMBER" \
+            --buildNumber="${BUILD_NUMBER}" \
             $EMBED_WATCH_FLAG \
             --disableProvisioningProfiles \
             --outputBuildArtifactsPath="build/artifacts"
 
       - name: Verify IPA exists
         run: |
-          ls -la /Users/Shared/telegram-ios/build/artifacts/
-          if [ ! -f /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa ]; then
+          ls -la "${SOURCE_DIR}/build/artifacts/"
+          if [ ! -f "${SOURCE_DIR}/build/artifacts/Telegram.ipa" ]; then
             echo "::error::IPA not found!"
             exit 1
           fi
-          echo "IPA size: $(du -h /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa | cut -f1)"
+          echo "IPA size: $(du -h "${SOURCE_DIR}/build/artifacts/Telegram.ipa" | cut -f1)"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: Mimosa-unsigned-ipa
-          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
+          path: "${SOURCE_DIR}/build/artifacts/Telegram.ipa"
           retention-days: 30
 
       - name: Upload dSYMs artifact
         uses: actions/upload-artifact@v4
         with:
           name: Mimosa-dsyms
-          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
+          path: "${SOURCE_DIR}/build/artifacts/Telegram.DSYMs.zip"
           retention-days: 30
           if-no-files-found: ignore
 
@@ -155,7 +160,7 @@ jobs:
           draft: false
           prerelease: true
           files: |
-            /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
-            /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
+            ${SOURCE_DIR}/build/artifacts/Telegram.ipa
+            ${SOURCE_DIR}/build/artifacts/Telegram.DSYMs.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
