@@ -129,14 +129,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Mimosa-unsigned-ipa
-          path: "${SOURCE_DIR}/build/artifacts/Telegram.ipa"
+          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
           retention-days: 30
 
       - name: Upload dSYMs artifact
         uses: actions/upload-artifact@v4
         with:
           name: Mimosa-dsyms
-          path: "${SOURCE_DIR}/build/artifacts/Telegram.DSYMs.zip"
+          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
           retention-days: 30
           if-no-files-found: ignore
 
@@ -159,7 +159,7 @@ jobs:
           draft: false
           prerelease: true
           files: |
-            ${SOURCE_DIR}/build/artifacts/Telegram.ipa
-            ${SOURCE_DIR}/build/artifacts/Telegram.DSYMs.zip
+            /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
+            /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
